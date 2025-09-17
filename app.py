@@ -2,43 +2,140 @@ import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import json
-from openai import OpenAI
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-model = YOLO("yolov8n.pt")
+import requests
+import io
+
+# Set page config
+st.set_page_config(page_title="Smart Breed Detection", layout="wide")
+
+# Initialize session state
+if 'detected_breed' not in st.session_state:
+    st.session_state.detected_breed = None
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+# Load your custom trained model (replace with your actual trained model path)
+model = YOLO("yolov8n.pt")  # This should be your trained model on Indian breeds
+
+# Load breed information
 with open("breeds_info.json", "r", encoding="utf-8") as f:
     breed_info = json.load(f)
-st.title("🐂 Smart Breed Detection & Advisory")
-st.write("Upload an image to detect breed and ask questions via chatbot.")
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+# Available languages
+LANGUAGES = {
+    "English": "en",
+    "Hindi": "hi", 
+    "Odia": "or",
+    "Bengali": "bn",
+    "Punjabi": "pa"
+}
+
+# Function to call Mistral via OpenRouter
+def query_mistral(prompt, api_key):
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "mistralai/mixtral-8x7b-instruct",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.2,
+                "max_tokens": 500
+            }
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+st.title("🐂 Indian Cattle & Buffalo Breed Detection")
+st.write("Upload an image to detect specific Indian breeds and get expert advice")
+
+# API key input (you can also use st.secrets in production)
+api_key = st.sidebar.text_input("OpenRouter API Key", type="password")
+
+# Language selection
+selected_lang = st.sidebar.selectbox("Choose Language", list(LANGUAGES.keys()))
+lang_code = LANGUAGES[selected_lang]
+
+# File upload
+uploaded_file = st.file_uploader("Choose an image of cattle/buffalo...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
+    # Display uploaded image
     img = Image.open(uploaded_file)
-    st.image(img, caption="Uploaded Image", use_column_width=True)
-
-    results = model.predict(img)
-
-    for r in results:
-        res_plotted = r.plot()
-        st.image(res_plotted, caption="Prediction Result", use_column_width=True)
-        if len(r.boxes) > 0:
-            breed = model.names[int(r.boxes.cls[0])]
-            st.subheader(f"🐃 Breed: {breed}")
-
-            if breed in breed_info:
-                st.write(breed_info[breed]["en"]) 
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.image(img, caption="Uploaded Image", use_column_width=True)
+    
+    # Perform prediction
+    with st.spinner("Detecting breed..."):
+        results = model.predict(img, conf=0.5)  # Confidence threshold
+    
+    with col2:
+        if results and len(results[0].boxes) > 0:
+            # Get the first detected breed
+            breed_idx = int(results[0].boxes.cls[0])
+            confidence = float(results[0].boxes.conf[0])
+            breed_name = model.names[breed_idx]
+            
+            st.session_state.detected_breed = breed_name
+            st.image(results[0].plot(), caption=f"Detection Result (Confidence: {confidence:.2f})", use_column_width=True)
+            
+            st.success(f"**Detected Breed: {breed_name}**")
+            
+            # Display breed information in selected language
+            if breed_name in breed_info:
+                if lang_code in breed_info[breed_name]:
+                    st.info(breed_info[breed_name][lang_code])
+                else:
+                    st.info(breed_info[breed_name]["en"])
             else:
-                st.write("Info not available.")
-st.subheader("💬 Breed Information Chatbot")
+                st.warning("Breed information not available in database.")
+        else:
+            st.error("No cattle/buffalo detected in the image. Please try another image.")
 
-user_q = st.text_input("Ask about treatment, importance, etc.")
-if user_q:
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are an AI veterinary advisor. Provide accurate, simple advice for farmers about cattle and buffalo breeds."},
-            {"role": "user", "content": user_q}
-        ]
-    )
+# Chatbot section
+st.divider()
+st.subheader("💬 Breed Expert Chatbot")
 
-    st.write("🤖 Chatbot:")
-    st.write(response.choices[0].message.content)
+if st.session_state.detected_breed:
+    st.write(f"Currently discussing: **{st.session_state.detected_breed}** breed")
+
+user_question = st.text_input("Ask about treatment, diet, economic value, or any other question:")
+
+if user_question and st.session_state.detected_breed and api_key:
+    # Create a knowledgeable prompt with the detected breed
+    breed_data = breed_info.get(st.session_state.detected_breed, {})
+    english_info = breed_data.get("en", "No information available")
+    
+    prompt = f"""
+    You are an expert veterinary advisor for Indian farmers. Answer the following question about {st.session_state.detected_breed} cattle breed in {selected_lang} language.
+    
+    Base your answer on this information: {english_info}
+    
+    Question: {user_question}
+    
+    Provide a helpful, accurate response in {selected_lang}. If the question is not related to cattle breeding, politely decline to answer.
+    """
+    
+    with st.spinner("Consulting with expert..."):
+        response = query_mistral(prompt, api_key)
+    
+    # Store in chat history
+    st.session_state.chat_history.append({"question": user_question, "answer": response})
+    
+    st.write("**Expert Advice:**")
+    st.write(response)
+
+# Display chat history
+if st.session_state.chat_history:
+    st.divider()
+    st.subheader("Chat History")
+    for i, chat in enumerate(reversed(st.session_state.chat_history)):
+        with st.expander(f"Q: {chat['question']}"):
+            st.write(f"**A:** {chat['answer']}")
