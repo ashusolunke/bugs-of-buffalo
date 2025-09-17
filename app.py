@@ -1,9 +1,9 @@
 import streamlit as st
-from ultralytics import YOLO
 from PIL import Image
 import json
 import requests
 import io
+import os
 
 # Set page config
 st.set_page_config(page_title="Smart Breed Detection", layout="wide")
@@ -14,16 +14,38 @@ if 'detected_breed' not in st.session_state:
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
-# Load your custom trained model (replace with your actual trained model path)
+# Try to import ultralytics with error handling
 try:
-    model = YOLO("best.pt")  # Use your trained model
-except:
-    st.error("Model file not found. Please train the model first.")
+    from ultralytics import YOLO
+except ImportError:
+    st.error("Ultralytics package not found. Please make sure requirements.txt includes 'ultralytics'")
     st.stop()
 
-# Load breed information
-with open("breeds_info.json", "r", encoding="utf-8") as f:
-    breed_info = json.load(f)
+# Load your custom trained model with error handling
+MODEL_PATH = "best.pt"
+if not os.path.exists(MODEL_PATH):
+    st.error(f"Model file '{MODEL_PATH}' not found. Please make sure it's in your repository.")
+    st.stop()
+
+try:
+    model = YOLO(MODEL_PATH)
+    st.sidebar.success("Model loaded successfully!")
+except Exception as e:
+    st.error(f"Error loading model: {str(e)}")
+    st.stop()
+
+# Load breed information with error handling
+BREEDS_INFO_PATH = "breeds_info.json"
+if not os.path.exists(BREEDS_INFO_PATH):
+    st.error(f"Breed information file '{BREEDS_INFO_PATH}' not found.")
+    st.stop()
+
+try:
+    with open(BREEDS_INFO_PATH, "r", encoding="utf-8") as f:
+        breed_info = json.load(f)
+except Exception as e:
+    st.error(f"Error loading breed information: {str(e)}")
+    st.stop()
 
 # Available languages
 LANGUAGES = {
@@ -61,7 +83,7 @@ st.write("Upload an image to detect specific Indian breeds and get expert advice
 # API key input
 api_key = st.sidebar.text_input("OpenRouter API Key", type="password")
 if not api_key:
-    st.sidebar.warning("Please enter your OpenRouter API key to use the chatbot")
+    st.sidebar.warning("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")
 
 # Language selection
 selected_lang = st.sidebar.selectbox("Choose Language", list(LANGUAGES.keys()))
@@ -80,7 +102,11 @@ if uploaded_file:
     
     # Perform prediction
     with st.spinner("Detecting breed..."):
-        results = model.predict(img, conf=0.5)  # Confidence threshold
+        try:
+            results = model.predict(img, conf=0.5)  # Confidence threshold
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
+            results = None
     
     with col2:
         if results and len(results[0].boxes) > 0:
@@ -90,7 +116,12 @@ if uploaded_file:
             breed_name = model.names[breed_idx]
             
             st.session_state.detected_breed = breed_name
-            st.image(results[0].plot(), caption=f"Detection Result (Confidence: {confidence:.2f})", use_column_width=True)
+            
+            # Try to display the result image
+            try:
+                st.image(results[0].plot(), caption=f"Detection Result (Confidence: {confidence:.2f})", use_column_width=True)
+            except:
+                st.warning("Could not display detection visualization")
             
             st.success(f"**Detected Breed: {breed_name}**")
             
@@ -145,3 +176,4 @@ if st.session_state.chat_history:
     for i, chat in enumerate(reversed(st.session_state.chat_history)):
         with st.expander(f"Q: {chat['question']}"):
             st.write(f"**A:** {chat['answer']}")
+
