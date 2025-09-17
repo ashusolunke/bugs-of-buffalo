@@ -1,13 +1,17 @@
-train: ../train/images
-val: ../valid/images
-test: ../test/images
+# data.yaml
+path: https://github.com/sundram6452/Image-based-breed-recognition-for-cattle-and-buffaloes-of-India/tree/main/dataset
+train: train/images
+val: valid/images
+test: test/images
 
+# Number of classes (12 Indian breeds)
 nc: 12
-names: ['0', '1', '10', '11', '2', '3', '4', '5', '6', '7', '8', '9']
+# Class names - CRITICAL: These must match the order your model was trained on
+names: ['Gir', 'Sahiwal', 'Red Sindhi', 'Tharparkar', 'Kankrej', 'Ongole', 'Hariana', 'Kangayam', 'Deoni', 'Amritmahal', 'Hallikar', 'Murrah']
 
+# Optional: Add metadata
 roboflow:
-  workspace: object-detection-naauz
-  project: cow-buffalo
+  workspace: your-workspace
+  project: indian-cattle-breeds
   version: 1
   license: CC BY 4.0
-  url: https://universe.roboflow.com/object-detection-naauz/cow-buffalo/dataset/1
