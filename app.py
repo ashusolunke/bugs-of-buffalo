@@ -15,7 +15,11 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
 # Load your custom trained model (replace with your actual trained model path)
-model = YOLO("yolov8n.pt")  # This should be your trained model on Indian breeds
+try:
+    model = YOLO("best.pt")  # Use your trained model
+except:
+    st.error("Model file not found. Please train the model first.")
+    st.stop()
 
 # Load breed information
 with open("breeds_info.json", "r", encoding="utf-8") as f:
@@ -54,8 +58,10 @@ def query_mistral(prompt, api_key):
 st.title("🐂 Indian Cattle & Buffalo Breed Detection")
 st.write("Upload an image to detect specific Indian breeds and get expert advice")
 
-# API key input (you can also use st.secrets in production)
+# API key input
 api_key = st.sidebar.text_input("OpenRouter API Key", type="password")
+if not api_key:
+    st.sidebar.warning("Please enter your OpenRouter API key to use the chatbot")
 
 # Language selection
 selected_lang = st.sidebar.selectbox("Choose Language", list(LANGUAGES.keys()))
