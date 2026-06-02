@@ -34,3 +34,7 @@ cd bugs-of-buffalo
 <img width="826" height="852" alt="Screenshot 2025-09-20 000936" src="https://github.com/user-attachments/assets/71779843-8fc3-4a26-bc51-10ff3ece3816" />
 <img width="1474" height="768" alt="Screenshot 2025-09-19 235628" src="https://github.com/user-attachments/assets/c6a604d7-b542-499a-a581-526e2ee6b4a2" />
 
+
+<img width="826" height="852" alt="Screenshot 2025-09-20 000936" src="https://github.com/user-attachments/assets/e52417cc-65df-4192-82e9-6b8f7cfae0ca" />
+
+
