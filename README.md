@@ -30,3 +30,7 @@ An AI-powered web application for identifying Indian cattle and buffalo breeds u
 ```bash
 git clone <your-repository-url>
 cd bugs-of-buffalo
+<img width="589" height="717" alt="Screenshot 2025-09-19 233657" src="https://github.com/user-attachments/assets/7a0cedb4-4928-43a0-90c2-311aeed9852e" />
+<img width="826" height="852" alt="Screenshot 2025-09-20 000936" src="https://github.com/user-attachments/assets/71779843-8fc3-4a26-bc51-10ff3ece3816" />
+<img width="1474" height="768" alt="Screenshot 2025-09-19 235628" src="https://github.com/user-attachments/assets/c6a604d7-b542-499a-a581-526e2ee6b4a2" />
+
